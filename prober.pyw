@@ -336,7 +336,7 @@ class Interface(Frame):
 
         #clear all / reset
         self.clearButton = Button(self, text='clear all / reset', width=self.bWidth, command=self.reset)
-        self.clearButton.grid(row=lastRow, column=7, columnspan=2, sticky='E')
+        self.clearButton.grid(row=lastRow+1, column=7, columnspan=2, sticky='E')
 
 
         #save as
@@ -425,12 +425,12 @@ class Interface(Frame):
 
     def updateResults(self):
 
-        #Update the Vp, Vm, Ip, Im frames
-        self.VpLabel.configure(text=round(self.Vp,4))
-        self.VmLabel.configure(text=round(self.Vm,4))
-        self.IpLabel.configure(text=round(self.Ip,4))
-        self.ImLabel.configure(text=round(self.Im,4))
-        self.RLabel.configure(text=round(self.R,4))
+        #Update the Vp, Vm, Ip, Im frames -- currently this frame does not exist
+        #self.VpLabel.configure(text=round(self.Vp,4))
+        #self.VmLabel.configure(text=round(self.Vm,4))
+        #self.IpLabel.configure(text=round(self.Ip,4))
+        #self.ImLabel.configure(text=round(self.Im,4))
+        #self.RLabel.configure(text=round(self.R,4))
 
         #update list: rewrite the data
         for i in range(1, min(self.dataFrameLength-1, len(self.data))+1):
@@ -449,15 +449,27 @@ class Interface(Frame):
             #rewrite
             self.labelList[i][self.dataFrameWidth-1].insert(0, self.data[-i][self.dataFrameWidth-1])
 
-        #update average and std
+        #update average and std if its not an empty list
         av, std = self.calcStats()
         self.RavLabel.configure(text=round(av,5))
         self.RstdLabel.configure(text=round(std,5))
 
     def reset(self):
-        #remove all data
+        #empty the label list / remove data
+        self.data = []
+        self.measNum = 0
+
+        #empty the comments:
+
+
         #change the timestamp / saveName
+        self.saveName = self.timeName()
+        self.savePath = self.instPath + '/data/' + self.saveName
+        self.saveEntry.insert(0, self.savePath)
+
         #check all instrument connections and settings
+        #finally, update everything
+        self.updateResults()
 
 
 
@@ -512,6 +524,9 @@ class Interface(Frame):
         return self
 
     def calcStats(self):
+        #if the list is empty, return zeros
+        if self.data == []: return 0,0
+        #otherwise, calculate the mean and std
         Rs = [data[6] for data in self.data]
         Rav = np.mean(Rs)
         Rstd = np.std(Rs)
