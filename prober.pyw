@@ -16,6 +16,11 @@ import probeMeas as pm
 import proberConfig #can probably be deleted
 
 
+#TODO fullscreen
+
+#TODO adapt message window size
+
+
 
 
 #TODO manual buttons: output+, output-, measure
@@ -25,8 +30,6 @@ import proberConfig #can probably be deleted
 #TODO comment field entry in data frame and export
 
 #TODO error when going beyond the dataframe
-
-#TODO clear all button: clears the data, resets the timestamp
 
 class Interface(Frame):
 
@@ -455,12 +458,14 @@ class Interface(Frame):
         self.RstdLabel.configure(text=round(std,5))
 
     def reset(self):
+
+        #empty the comments:
+        for i in range(1, min(self.dataFrameLength-1, len(self.data))+1):
+            self.labelList[i][self.dataFrameWidth-1].delete(0, 'end')
+
         #empty the label list / remove data
         self.data = []
         self.measNum = 0
-
-        #empty the comments:
-
 
         #change the timestamp / saveName
         self.saveName = self.timeName()
@@ -586,6 +591,7 @@ class Interface(Frame):
 
 def main():
     root = Tk()
+    root.attributes('-zoomed', True)
     def_font = font.nametofont("TkDefaultFont")
     def_font.config(size=9)
     root.title('Junction Prober')
