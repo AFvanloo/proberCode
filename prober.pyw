@@ -95,8 +95,10 @@ class Interface(Frame):
 
         #prober button
         self.probeButton = Button(self, text='Probe!', width=self.bWidth, 
-                command=self.probe)
-        self.probeButton.grid(row=0, column=0, columnspan=1, sticky='W')
+                height=2, bg = 'red', fg='white', 
+                activebackground='white', activeforeground='red',
+                command=self.probe, font='helvetica 14 bold')
+        self.probeButton.grid(row=0, column=0, rowspan=2, columnspan=1, sticky='W')
 
         #IV-meas button
         #Not yet implemented!
@@ -108,16 +110,16 @@ class Interface(Frame):
         #plot histogram
         self.histButton = Button(self, text='Show Histogram', width=self.bWidth,
                 command=self.showHistogram)
-        self.histButton.grid(row=1, column=0, sticky='W')
+        self.histButton.grid(row=2, column=0, sticky='W')
 
         #delete last data
         self.delButton = Button(self, text='Delete last data', width=self.bWidth,
                 command=self.delLastData)
-        self.delButton.grid(row=2, column=0, sticky='W')
+        self.delButton.grid(row=3, column=0, sticky='W')
 
         #reconnect instruments button
-        self.reconnectButton = Button(self, text='Reconnect \n instruments', width=self.bWidth, command=self.connectInstruments)
-        self.reconnectButton.grid(row=3, column=0, sticky='W')
+        #self.reconnectButton = Button(self, text='Reconnect \n instruments', width=self.bWidth, command=self.connectInstruments)
+        #self.reconnectButton.grid(row=4, column=0, sticky='W')
 
 
 
@@ -216,7 +218,7 @@ class Interface(Frame):
         self.avsLabel = Label(self.settingsFrame, text='#averages')
         self.avsLabel.grid(row=0, column=6, columnspan=1)
         #Entry
-        self.avsEntry = Entry(self.settingsFrame, width=esWidth)
+        self.avsEntry = Entry(self.settingsFrame, width=esWidth-2)
         self.avsEntry.grid(row=1, column=6, columnspan=1)
         self.avsEntry.insert(0,'10')
 
@@ -328,22 +330,24 @@ class Interface(Frame):
 #----------Saving etc------------------------------------------
         lastRow=16
 
-        #csv file path
-        self.saveEntry = Entry(self, width=50)
-        #TODO sanitize for windows: / -> \\
-        #TODO B310 save folder
-        self.savePath = self.instPath + '/data/' + self.saveName
-        self.savePath = '/home/pi/Desktop/proberData/' + self.saveName
-        self.saveEntry.insert(0, self.savePath)
-        self.saveEntry.grid(row=lastRow, column=3, columnspan=4)
-
         #save label
         self.saveLabel = Label(self, text='save at')
-        self.saveLabel.grid(row=lastRow, column=2, sticky='E')
+        self.saveLabel.grid(row=lastRow+2, column=0, sticky='E')
+
+        #csv file path
+        self.saveEntry = Entry(self, width=60)
+        #TODO sanitize for windows: / -> \\
+        #TODO B310 save folder
+        #self.savePath = self.instPath + '/data/' + self.saveName
+        #self.savePath = '/home/pi/Desktop/proberData/' + self.saveName
+        self.savePath = '/media/B310/qubit_team/probeStation/data/' + self.saveName
+        self.saveEntry.insert(0, self.savePath)
+        self.saveEntry.grid(row=lastRow+2, column=1, columnspan=6)
+
 
         #save
         self.saveButton = Button(self, text='save', fg='blue', command=self.save)
-        self.saveButton.grid(row=lastRow, column=8)
+        self.saveButton.grid(row=lastRow+2, column=7)
 
         #clear all / reset
         self.clearButton = Button(self, text='clear all / reset', width=self.bWidth, command=self.reset)
@@ -351,12 +355,12 @@ class Interface(Frame):
 
         #save as
         self.browseButton = Button(self, text='Browse ...', fg='blue', command=self.browseSave)
-        self.browseButton.grid(row=lastRow+1, column=5)
+        self.browseButton.grid(row=lastRow+1, column=8)
         
         #quit
         self.quitButton = Button(self, text='Quit', fg='Red', \
                 command=self.quit)
-        self.quitButton.grid(row=lastRow+1, column=8, columnspan=2, sticky='E')
+        self.quitButton.grid(row=lastRow+2, column=8, columnspan=1, sticky='E')
 
         #browse for save file path
         #filedialog?
