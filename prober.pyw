@@ -16,11 +16,12 @@ import probeMeas as pm
 import proberConfig #can probably be deleted
 
 
-#TODO fullscreen
-
 #TODO adapt message window size
 
 
+#TODO averages!
+
+#TODO dynamic status updates
 
 
 #TODO manual buttons: output+, output-, measure
@@ -62,6 +63,7 @@ class Interface(Frame):
         #default values
         self.uvA = 100
         self.gain = 100
+        self.avs = 10
 
 
         #paths
@@ -165,7 +167,7 @@ class Interface(Frame):
 
 #-------------Measurement settings frame-------------------------------------------------
 
-        esWidth=15 
+        esWidth=12 
         
         self.settingsFrame = LabelFrame(self, text='Measurement settings', labelanchor='n')
         self.settingsFrame.grid(row=2, rowspan=3, column=1, columnspan=8)
@@ -177,38 +179,46 @@ class Interface(Frame):
         #self.sourceStr = StringVar()
         self.sourceEntry = Entry(self.settingsFrame, width=esWidth)
         self.sourceEntry.grid(row=1, column=0, columnspan=2)
-        self.sourceEntry.insert(0, '.1')
+        self.sourceEntry.insert(0, '.001')
         #self.sourceButton = Button(self.settingsFrame, text='Set source', command=self.setSource)
         #self.sourceButton.grid(row=2, column=0)
 
         #uV/A dropdown list and label
         self.uvALabel= Label(self.settingsFrame, text='uV/A setting:', anchor='c')
-        self.uvALabel.grid(row=0, column=2, columnspan=2)
+        self.uvALabel.grid(row=0, column=2, columnspan=1)
         self.uvAInt = IntVar()
         self.uvAInt.set(self.config['uV/A'])
         uvAList = ('1', '2', '5', '10', '20', '50', '100', '200', '500', '1000', '2000', '5000')
         self.uvAMenu = OptionMenu(self.settingsFrame, self.uvAInt, *uvAList, command=self.setuVA)
         self.uvAMenu.configure(width=esWidth)
-        self.uvAMenu.grid(row=1, column=2, columnspan=2)
+        self.uvAMenu.grid(row=1, column=2, columnspan=1)
 
         #gain dropdown list
         self.gainLabel= Label(self.settingsFrame, text='amp gain setting:', anchor='c')
-        self.gainLabel.grid(row=0, column=4, columnspan=2)
+        self.gainLabel.grid(row=0, column=3, columnspan=1)
         gainList = ('1', '10', '100', '1000', '10000')
         self.gainInt = IntVar()
         self.gainInt.set(self.config['gain'])
         self.gainMenu = OptionMenu(self.settingsFrame, self.gainInt, *gainList, command=self.setGain)
         self.gainMenu.configure(width=esWidth)
-        self.gainMenu.grid(row=1, column=4, columnspan=2)
+        self.gainMenu.grid(row=1, column=3, columnspan=1)
 
         #wait entry
         self.waitLabel = Label(self.settingsFrame, text='wait between ON \n and measure (s)')
-        self.waitLabel.grid(row=0, column=6, columnspan=2)
+        self.waitLabel.grid(row=0, column=4, columnspan=2)
         #self.waitString = StringVar()
         self.waitEntry = Entry(self.settingsFrame, width=esWidth)#, textvariable=self.waitString, width=15)
-        self.waitEntry.grid(row=1, column=6, columnspan=2)
-        self.waitEntry.insert(0,'.1')
+        self.waitEntry.grid(row=1, column=4, columnspan=2)
+        self.waitEntry.insert(0,'.5')
 
+
+        #Averages
+        self.avsLabel = Label(self.settingsFrame, text='#averages')
+        self.avsLabel.grid(row=0, column=6, columnspan=1)
+        #Entry
+        self.avsEntry = Entry(self.settingsFrame, width=esWidth)
+        self.avsEntry.grid(row=1, column=6, columnspan=1)
+        self.avsEntry.insert(0,'10')
 
 #-------------Current values------------------------------------------------------
         '''
@@ -260,7 +270,7 @@ class Interface(Frame):
 #statistics
 
 #plotHistogram
-        dWidths=[10, 12] + [7]*5 + 2*[5]+[12] 
+        dWidths=[10, 12] + [7]*4 + [10] + 2*[5]+[12] 
 
         self.dataFrameWidth = 10
         self.dataFrameLength = 8
@@ -323,24 +333,21 @@ class Interface(Frame):
         #TODO sanitize for windows: / -> \\
         #TODO B310 save folder
         self.savePath = self.instPath + '/data/' + self.saveName
+        self.savePath = '/home/pi/Desktop/proberData/' + self.saveName
         self.saveEntry.insert(0, self.savePath)
-        self.saveEntry.grid(row=lastRow, column=4, columnspan=4)
+        self.saveEntry.grid(row=lastRow, column=3, columnspan=4)
 
         #save label
         self.saveLabel = Label(self, text='save at')
-        self.saveLabel.grid(row=lastRow, column=3, sticky='E')
+        self.saveLabel.grid(row=lastRow, column=2, sticky='E')
 
         #save
         self.saveButton = Button(self, text='save', fg='blue', command=self.save)
-        self.saveButton.grid(row=lastRow, column=9)
-
-
-        #TODO filedialog
+        self.saveButton.grid(row=lastRow, column=8)
 
         #clear all / reset
         self.clearButton = Button(self, text='clear all / reset', width=self.bWidth, command=self.reset)
-        self.clearButton.grid(row=lastRow+1, column=7, columnspan=2, sticky='E')
-
+        self.clearButton.grid(row=lastRow+1, column=6, columnspan=2, sticky='E')
 
         #save as
         self.browseButton = Button(self, text='Browse ...', fg='blue', command=self.browseSave)
@@ -349,8 +356,7 @@ class Interface(Frame):
         #quit
         self.quitButton = Button(self, text='Quit', fg='Red', \
                 command=self.quit)
-        self.quitButton.grid(row=lastRow+1, column=9, columnspan=2, sticky='E')
-
+        self.quitButton.grid(row=lastRow+1, column=8, columnspan=2, sticky='E')
 
         #browse for save file path
         #filedialog?
@@ -362,10 +368,10 @@ class Interface(Frame):
 
     def connectInstruments(self, GPIB=[1,2,3], RS323=[1,2]):
         #return address if connected:
-        addresses = pm.connectInstruments()
+        connections = pm.connectInstruments()
         adrLabels = ['vSourceAddrLabel', 'KeithleyVAddrLabel', 'KeithleyIAddrLabel', 'SRSPAddrLabel', 'SRSDAddrLabel']
 
-        for i, adr in enumerate(addresses):
+        for i, adr in enumerate(connections):
             if adr != None:
                 #set label colour to green
                 setattr(self, adrLabels[i]+"['text']", adr)
@@ -373,6 +379,7 @@ class Interface(Frame):
 
 
         #connect yoko source
+        #pm.initSource()
         #connect 
 
 
@@ -402,6 +409,8 @@ class Interface(Frame):
         #get wait and voltage from entry menus
         wait = float(self.waitEntry.get())
         voltage = float(self.sourceEntry.get())
+        self.avs = int(self.avsEntry.get())
+
 
         #get uvA and gain from dropdown menus
         print(self.gainInt)
@@ -409,7 +418,7 @@ class Interface(Frame):
         self.gain = self.gainInt.get()
         
         #Probe it        
-        self.Vp, self.Vm, self.Ip, self.Im, self.R = pm.probe(voltage, wait=wait, uvA=self.uvA, gain=self.gain)
+        self.Vp, self.Vm, self.Ip, self.Im, self.R = pm.probe(voltage, wait=wait, uvA=self.uvA, gain=self.gain, avs=self.avs)
         #set to current values
         #save values, put in data frame
         self.measNum += 1
@@ -438,7 +447,10 @@ class Interface(Frame):
         #update list: rewrite the data
         for i in range(1, min(self.dataFrameLength-1, len(self.data))+1):
             for j in range(self.dataFrameWidth-1):
-                self.labelList[i][j]['text'] = str(round(self.data[-i][j],4))
+                if j == 6:
+                    self.labelList[i][j]['text'] = str(round(self.data[-i][j],1))
+                else:
+                    self.labelList[i][j]['text'] = str(round(self.data[-i][j],4))
         
         #write zeros for things with no data.
         for i in range(len(self.data), self.dataFrameLength-1):

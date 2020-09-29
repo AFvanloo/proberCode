@@ -2,6 +2,9 @@ import numpy as np
 import pyvisa
 import time
 
+rm = pyvisa.ResourceManager('@py')
+
+
 
 #If instruments are sufficiently static, we can use:
 import proberConfig as pc #can probably be removed
@@ -9,67 +12,91 @@ import proberConfig as pc #can probably be removed
 
 #We could hardcode this here instead of in config
 config = pc.config()
-vSourceadr = config['sourceAddress']
-KeithelyIadr = config['iMeasAddress']
-KeithelyVadr = config['vMeasAddress']
-SRSDadr = config['srsDAddress']
-SRSPadr = config['srsDAddress']
+yokoAdr = config['sourceAddress']
+KIAdr = config['iMeasAddress']
+KVAdr = config['vMeasAddress']
+#SRSDadr = config['srsDAddress']
+#SRSPadr = config['srsDAddress']
+
+print('yokoAdr is ', yokoAdr)
+
+
 
 
 def connectInstruments():
     #find GPIB addresses
-    #rm = pyvisa.ResourceManager()
+    rm = pyvisa.ResourceManager('@py')
+    #GPIB instruments -- do they exist?
+    connections = []
+    for adr in [yokoAdr, KIAdr, KVAdr]:
+        try:
+            instName = visaRead(adr, mesg='*IDN?')
+            print('instrument ', instName, ' is connected at ', adr)
+            connections.append(True)
+        except:
+            print('No instrument at address', adr)
+    #RS232
+    #TODO
     #self.resourceList = rm.list_resources()
     #which is which?
     #return address is order: yoko source, Keithly V, Keithley I, SRS preamp, SRS diff amp
     #return None if not found
 
+    initSource()
+    return connections
 
-    #dummy return
-    return [3,5,8,None,7897]
+def initSource(Vrange=1.):
+    #set as voltage source
+    visaWrite(yokoAdr, ':SOUR:FUNC VOLT')
+    #set range
+    visaWrite(yokoAdr, ':SOUR:RANGE 1')
+    #set output off
+    setSourceOutput(0)
+    #set voltage to zero
+    setSourceVoltage(0)
 
 
-def measVp():
+    
+
+
+def measV():
     #visaGet(msg)
-    #parse return message
-    #return result
-    return np.random.rand()*100
+    V = visaRead(KVAdr, mesg='FETCH?')
+    return float(V)
 
-def measVm():
+
+def measI():
     #visaGet(msg)
-    #parse return message
-    #return result
-    return np.random.rand()*-100
+    I = visaRead(KIAdr, mesg='FETCH?')
+    return float(I)
 
-def measIp():
-    #visaGet(msg)
-    #parse return message
-    #return result
-    return np.random.rand()*100
 
-def measIm():
-    #visaGet(msg)
-    #parse return message
-    #return result
-    return np.random.rand()*-100
+def setSourceVoltage(V):
 
-def setSource(mV):
-    #Do a get after set
-    #check that the gotten value is the sent value
+    if abs(V) > 1:
+        print('Trying to set source outside its range')
+        return
+    mesg = ':SOUR:LEV '+str(V)
+    ans = visaWrite(yokoAdr, mesg)
     #return True if so
-    return True
+    return ans
 
 
-def sourceOutput(status):
+def setSourceOutput(status):
+    '''
+    sets the output state. 
+
+    INPUT: 0 for off, 1 for on
+    '''
+    if status in ['on', 'On', 'ON']:
+        status = 1
+    if status in ['off', 'Off', 'OFF']:
+        status = 0
+
     #set output on or off
-    #visaWrite()
-    #check if on
-    time.sleep(.01)
-    #visaRead(on?)
-    #parse, check if asked status is status
-
-    #use get after set
-    return True
+    mesg = ':OUTP ' + str(int(status))
+    ans = visaWrite(yokoAdr, mesg)
+    return ans
 
 #====================Communication utilities==================
 
@@ -79,8 +106,35 @@ def visaWrite(adr, mesg, get_after_set=True):
     #implement get_after_set
     #send visa message
     #sleep 10ms
-    if get_after_set:
-        time.sleep(.01)
+    #construct string
+    gpibAdr = 'GPIB0::'+str(int(adr))+'::INSTR'
+    inst = rm.open_resource(gpibAdr)
+
+    #set
+    inst.write(mesg)
+    time.sleep(.01)
+    #formulate question variant of mesg
+    
+    mesgParts = mesg.split(' ')
+    question = mesgParts[0]
+    inst.write((question+'?'))
+    ans = inst.read()
+    
+    if ord(mesgParts[1][0]) < 58:
+        #we have a number
+        if float(ans) == float(mesgParts[1]):
+            return True
+        else:
+            return False
+    else:
+        #assume the string is letters
+        if ans[:-1] in mesgParts[1]:
+            return True
+
+
+
+    #if get_after_set:
+    #    time.sleep(.01)
         #if parsed output == input:
             #return True
         #else:
@@ -93,13 +147,16 @@ def visaWrite(adr, mesg, get_after_set=True):
     #    return True
 
 
-def visaRead(adr, mesg):
-    pass
-    #send visa message
-    #output = visa....(mesg)
-    #parse output
+def visaRead(adr, mesg='READ?'):
+    
+    gpibAdr = 'GPIB0::'+str(int(adr))+'::INSTR'
+    inst = rm.open_resource(gpibAdr)
 
-    #return output
+    #send visa message
+    inst.write(mesg)
+    ans  = inst.read()[:-1]
+    return ans
+
 
 def reversePolarity():
     pass
@@ -110,34 +167,55 @@ def reversePolarity():
 
 
 
-def probe(voltage, wait=.5, uvA=100, gain=100):
-    #set voltage
+def probe(voltage, wait=.5, uvA=100, gain=100, avs=10):
     
+    print('probing')
+    #set voltage
+    setSourceVoltage(voltage)
     #switch output on
-    sourceOutput('ON')
+    setSourceOutput('ON')
 
+    
     time.sleep(wait)
-    Vp = measVp()
-    Ip = measIp()
+
+    #measure
+    Vps, Ips = [], []
+    for i in range(avs):
+        Vps.append(measV())
+        Ips.append(measI())
+        time.sleep(.01)
+    Vp = np.mean(Vps)
+    Ip = np.mean(Ips)
 
     #toggle polarity
+    setSourceVoltage(-1*voltage)
     time.sleep(wait)
-    Vm = measVm()
-    Im = measIm()
+
+    Vms, Ims = [], []
+    for i in range(avs):
+        Vms.append(measV())
+        Ims.append(measI())
+        time.sleep(.01)
+    Vm = np.mean(Vms)
+    Im = np.mean(Ims)
 
     #switch output off
+    setSourceOutput('OFF')
     
     R = calcR(Vp, Vm, Ip, Im, uvA, gain)
-    print('probing')
     return Vp, Vm, Ip, Im, R
 
-def calcR(Vp, Vm, Ip, Im, uvA=100, gain=100):
+def calcR(Vp, Vm, Ip, Im, uvA=1, gain=100):
     '''
     Calculates R. Assumes SI values (ie, Volts and Volts)
     '''
-    Rp = Vp*uvA*1e-6/(Ip/gain)
-    Rm = Im*uvA*1e-6/(Im/gain)
-    return (Rp+Rm)/2
+    Vpp = Vp/gain
+    Ipp = Ip*uvA*1e-6
+    Vmm = Vm/gain
+    Imm = Im*uvA*1e-6
+    R = (Vpp-Vmm)/(Ipp-Imm)
+    print('Measured resistance to be ', R)
+    return R
 
 def IV(uvA=100, gain=100):
     pass
