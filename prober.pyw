@@ -15,6 +15,8 @@ import time
 import probeMeas as pm
 import proberConfig #can probably be deleted
 
+import connectGPIB as cg
+import updateProber as up
 
 #TODO adapt message window size
 
@@ -65,6 +67,8 @@ class Interface(Frame):
         self.gain = 100
         self.avs = 10
 
+        self.reconnectGPIB=False #remove during debugging
+
 
         #paths
         self.instPath = os.getcwd()
@@ -79,6 +83,10 @@ class Interface(Frame):
         #create the buttons etc
         self.initUI()
         self.connectInstruments()
+
+        if self.reconnectGPIB == True:
+            cg.main()
+
 
 
     def initUI(self):
@@ -485,7 +493,9 @@ class Interface(Frame):
 
         #change the timestamp / saveName
         self.saveName = self.timeName()
-        self.savePath = self.instPath + '/data/' + self.saveName
+        self.savePath = '/media/B310/qubit_team/probestation/data/' + self.saveName
+        #remove existing entry
+        self.saveEntry.delete(0, 'end')
         self.saveEntry.insert(0, self.savePath)
 
         #check all instrument connections and settings
@@ -572,7 +582,7 @@ class Interface(Frame):
         typotext.grid(row=0,column=0)
 
     def browseSave(self):
-        self.savePath = filedialog.asksaveasfilename(defaultextension='.csv', title='Save as')
+        self.savePath = filedialog.asksaveasfilename(defaultextension='.csv', title='Save as', initialdir='/media/B310/qubit_team/probestation/data')
         print(self.savePath)
         if self.savePath == None: #used cancel button
             return
