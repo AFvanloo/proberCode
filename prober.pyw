@@ -19,7 +19,7 @@ import proberConfig #can probably be deleted
 import connectGPIB as cg
 import updateProber as up
 
-debugMode=True
+debugMode=False
 
 #TODO adapt message window size
 
@@ -274,53 +274,6 @@ class Interface(Frame):
 #statistics
 
 #plotHistogram
-        '''
-        self.dataFrameWidth = 11
-        
-        self.dataFrameLength = 8
-        self.dWidths=[10, 12] + [7]*4 + [10] + 2*[5]+[12] +[1]
-
-        #outer frame?
-        self.outerFrame =  Frame(self)
-        self.outerFrame.grid(row=6, rowspan=self.dataFrameLength,column=0, columnspan=self.dataFrameWidth)
-
-        #Put canvas inside outer frame
-        self.dataCanvas = Canvas(self.outerFrame)
-        self.dataCanvas.grid(row=0, column=0)
-
-        #scrollbar also goes in outer frame
-        self.dataScrollbar = Scrollbar(self.outerFrame, orient='vertical', command=self.dataCanvas.yview)
-        self.dataScrollbar.grid(row=0, column=1, sticky=NS)
-        self.dataCanvas.configure(yscrollcommand=self.dataScrollbar.set)
-        #The data frame goes inside the canvas
-        #self.dataFrame = LabelFrame(self.dataCanvas, text='last few results', labelanchor='n')
-
-        #Data frame goes in the canvas
-        self.dataFrame = Frame(self.dataCanvas)
-        self.dataFrame.grid(row=0, column=0)
-
-        self.dataFrame.bind('<Configure>', self.onFrameConfigure)
-
-        self.dataFrameLabels = ['measNum', 'Vsource (mV)', 'V+ (mV)', 'V- (mV)', 'I+ (mV)', 'I- (mV)', 'R (Ohm)', 'uV/A', 'gain', 'Comments']
-
-
-
-        self.initDataLabels()
-        
-        #create canvas window
-        self.dataCanvas.create_window((0,0), window=self.dataFrame, anchor=NW)
-
-        #something?
-        self.dataFrame.update_idletasks()
-        bbox = self.dataCanvas.bbox(ALL)
-
-        w, h = bbox[2]-bbox[1], bbox[3]-bbox[1]
-        self.dataCanvas.configure(scrollregion=bbox, width=w, height=int(h/max(len(self.data),self.dataFrameLength)*self.dataFrameLength))
-        #self.dataCanvas.configure(scrollregion=bbox, width=w, height=80)
-
-
-
-        '''
         self.makeDataFrame()
         
 
