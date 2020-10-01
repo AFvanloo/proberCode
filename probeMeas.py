@@ -199,6 +199,12 @@ def probe(voltage, wait=.5, uvA=100, gain=100, avs=10):
     Vm = np.mean(Vms)
     Im = np.mean(Ims)
 
+    #print some data
+    print('Vp is ', round(Vp,3), ' +- ', round(np.std(Vps),3), 
+            'Ip is ', round(Ip,3), ' +- ', round(np.std(Ips),3),  
+            'Vm is ', round(Vm,3), ' +- ', round(np.std(Vms),3),  
+            'Im is ', round(Im,3), ' +- ', round(np.std(Ims),3))
+
     #switch output off
     setSourceOutput('OFF')
     

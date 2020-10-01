@@ -10,6 +10,7 @@ import numpy as np
 import csv
 import os
 import time
+import random
 
 #This is where the measuring code goes:
 import probeMeas as pm
@@ -18,21 +19,12 @@ import proberConfig #can probably be deleted
 import connectGPIB as cg
 import updateProber as up
 
+debugMode=False
+
 #TODO adapt message window size
-
-
-#TODO averages!
 
 #TODO dynamic status updates
 
-
-#TODO manual buttons: output+, output-, measure
-
-#TODO fix not being able to delete the first measurement value
-
-#TODO comment field entry in data frame and export
-
-#TODO error when going beyond the dataframe
 
 class Interface(Frame):
 
@@ -82,7 +74,9 @@ class Interface(Frame):
 
         #create the buttons etc
         self.initUI()
-        self.connectInstruments()
+        #Comment the below out for debugging the GUI
+        if not debugMode:
+            self.connectInstruments()
 
         if self.reconnectGPIB == True:
             cg.main()
@@ -184,7 +178,7 @@ class Interface(Frame):
         
 
         #source voltage setting
-        sourceLabel2 = Label(self.settingsFrame, text='source Voltage (mV):')
+        sourceLabel2 = Label(self.settingsFrame, text='source Voltage (V):')
         sourceLabel2.grid(row=0, column=0, columnspan=2)
         #self.sourceStr = StringVar()
         self.sourceEntry = Entry(self.settingsFrame, width=esWidth)
@@ -194,7 +188,7 @@ class Interface(Frame):
         #self.sourceButton.grid(row=2, column=0)
 
         #uV/A dropdown list and label
-        self.uvALabel= Label(self.settingsFrame, text='uV/A setting:', anchor='c')
+        self.uvALabel= Label(self.settingsFrame, text='uA/V setting:', anchor='c')
         self.uvALabel.grid(row=0, column=2, columnspan=1)
         self.uvAInt = IntVar()
         self.uvAInt.set(self.config['uV/A'])
@@ -219,7 +213,7 @@ class Interface(Frame):
         #self.waitString = StringVar()
         self.waitEntry = Entry(self.settingsFrame, width=esWidth)#, textvariable=self.waitString, width=15)
         self.waitEntry.grid(row=1, column=4, columnspan=2)
-        self.waitEntry.insert(0,'.5')
+        self.waitEntry.insert(0,'1.5')
 
 
         #Averages
@@ -280,13 +274,31 @@ class Interface(Frame):
 #statistics
 
 #plotHistogram
-        dWidths=[10, 12] + [7]*4 + [10] + 2*[5]+[12] 
-
-        self.dataFrameWidth = 10
+        self.dataFrameWidth = 11
+        
         self.dataFrameLength = 8
+        self.dWidths=[10, 12] + [7]*4 + [10] + 2*[5]+[12] +[1]
 
-        self.dataFrame = LabelFrame(self, text='last few results', labelanchor='n')
-        self.dataFrame.grid(row=6, rowspan=self.dataFrameLength,column=0, columnspan=self.dataFrameWidth)
+        #outer frame?
+        self.outerFrame =  Frame(self)
+        self.outerFrame.grid(row=6, rowspan=self.dataFrameLength,column=0, columnspan=self.dataFrameWidth)
+
+        #Put canvas inside outer frame
+        self.dataCanvas = Canvas(self.outerFrame)
+        self.dataCanvas.grid(row=0, column=0)
+
+        #scrollbar also goes in outer frame
+        self.dataScrollbar = Scrollbar(self.outerFrame, orient='vertical', command=self.dataCanvas.yview)
+        self.dataScrollbar.grid(row=0, column=1, sticky=NS)
+        self.dataCanvas.configure(yscrollcommand=self.dataScrollbar.set)
+        #The data frame goes inside the canvas
+        #self.dataFrame = LabelFrame(self.dataCanvas, text='last few results', labelanchor='n')
+
+        #Data frame goes in the canvas
+        self.dataFrame = Frame(self.dataCanvas)
+        self.dataFrame.grid(row=0, column=0)
+
+        self.dataFrame.bind('<Configure>', self.onFrameConfigure)
 
         self.dataFrameLabels = ['measNum', 'Vsource (mV)', 'V+ (mV)', 'V- (mV)', 'I+ (mV)', 'I- (mV)', 'R (Ohm)', 'uV/A', 'gain', 'Comments']
 
@@ -294,23 +306,37 @@ class Interface(Frame):
         self.labelList = [[0 for i in range(self.dataFrameWidth)] for j in range(self.dataFrameLength)]
 
         #Add 
-        for i in range(self.dataFrameWidth):
+        for i in range(self.dataFrameWidth-1):
             #set labels
-            la = Label(self.dataFrame, text=self.dataFrameLabels[i], width=dWidths[i])
+            la = Label(self.dataFrame, text=self.dataFrameLabels[i], width=self.dWidths[i])
             la.grid(row=0, column=i)
             self.labelList[0][i]=la
+            #for j in range(1, max(self.dataFrameLength, len(self.data))):
             for j in range(1, self.dataFrameLength):
                 #data labels
-                if i < self.dataFrameWidth-1:
-                    lb = Label(self.dataFrame, text='0', width=dWidths[i])
+                if i < self.dataFrameWidth-2:
+                    lb = Label(self.dataFrame, text='0', width=self.dWidths[i])
                     lb.grid(row=j, column=i)
                     self.labelList[j][i] = lb 
-                elif i == self.dataFrameWidth-1:
+                elif i == self.dataFrameWidth-2:
                     #comment entries
                     en = Entry(self.dataFrame, width=20)
                     #en.insert(0, '')
-                    en.grid(row=j, column=self.dataFrameWidth-1)
-                    self.labelList[j][self.dataFrameWidth-1] = en
+                    en.grid(row=j, column=self.dataFrameWidth-2)
+                    self.labelList[j][self.dataFrameWidth-2] = en
+        
+        #create canvas window
+        self.dataCanvas.create_window((0,0), window=self.dataFrame, anchor=NW)
+
+        #something?
+        self.dataFrame.update_idletasks()
+        bbox = self.dataCanvas.bbox(ALL)
+
+        w, h = bbox[2]-bbox[1], bbox[3]-bbox[1]
+        self.dataCanvas.configure(scrollregion=bbox, width=w, height=int(h/max(len(self.data),self.dataFrameLength)*self.dataFrameLength))
+        #self.dataCanvas.configure(scrollregion=bbox, width=w, height=80)
+
+
 
 
         
@@ -378,6 +404,15 @@ class Interface(Frame):
 #---------------------------Functions------------------------------------
 #========================================================================
 
+    #For scrollbar Functionality
+    def onFrameConfigure(self, event):
+        '''
+        reset scroll bar
+        '''
+        self.dataCanvas.configure(scrollregion=self.dataCanvas.bbox('all'))
+
+
+
     def connectInstruments(self, GPIB=[1,2,3], RS323=[1,2]):
         #return address if connected:
         connections = pm.connectInstruments()
@@ -418,6 +453,9 @@ class Interface(Frame):
 
 
     def probe(self):
+        #disable button!
+        self.probeButton.config(state=DISABLED)
+
         #get wait and voltage from entry menus
         wait = float(self.waitEntry.get())
         voltage = float(self.sourceEntry.get())
@@ -430,7 +468,10 @@ class Interface(Frame):
         self.gain = self.gainInt.get()
         
         #Probe it        
-        self.Vp, self.Vm, self.Ip, self.Im, self.R = pm.probe(voltage, wait=wait, uvA=self.uvA, gain=self.gain, avs=self.avs)
+        if debugMode:
+            self.Vp, self.Vm, self.Ip, self.Im, self.R = random.random(), random.random(), random.random(), random.random(), random.random()
+        else:
+            self.Vp, self.Vm, self.Ip, self.Im, self.R = pm.probe(voltage, wait=wait, uvA=self.uvA, gain=self.gain, avs=self.avs)
         #set to current values
         #save values, put in data frame
         self.measNum += 1
@@ -438,6 +479,9 @@ class Interface(Frame):
         self.data.append([self.measNum, voltage, self.Vp, self.Vm, self.Ip, self.Im, self.R, self.gain, self.uvA, ''])
         self.getComments()
         self.updateResults()
+
+        #re-enable button
+        self.probeButton.config(state=NORMAL)
 
     def IVpopupWindow(self):
         self.messageWindow('Automated IV curve measuring not yet implemented')
@@ -456,25 +500,57 @@ class Interface(Frame):
         #self.ImLabel.configure(text=round(self.Im,4))
         #self.RLabel.configure(text=round(self.R,4))
 
-        #update list: rewrite the data
-        for i in range(1, min(self.dataFrameLength-1, len(self.data))+1):
-            for j in range(self.dataFrameWidth-1):
-                if j == 6:
-                    self.labelList[i][j]['text'] = str(round(self.data[-i][j],1))
-                else:
-                    self.labelList[i][j]['text'] = str(round(self.data[-i][j],4))
-        
-        #write zeros for things with no data.
-        for i in range(len(self.data), self.dataFrameLength-1):
-            for j in range(self.dataFrameWidth-1):
-                self.labelList[i+1][j]['text'] = str(0)
+        if len(self.data) >= self.dataFrameLength:
+            #create a new labelList:
+            self.labelList = [[i for i in range(self.dataFrameWidth)] for j in range(len(self.data))]
+                    
+            for i in range(self.dataFrameWidth-1):
+                #set labels
+                la = Label(self.dataFrame, text=self.dataFrameLabels[i], width=self.dWidths[i])
+                la.grid(row=0, column=i)
+                self.labelList[0][i]=la
+                for j in range(1, len(self.data)+1):
+                #for j in range(1, self.dataFrameLength):
+                    #data labels
+                    ei = self.dataFrameWidth-2 #entry index
+                    if i < ei:
+                        if i == 6: dataText = str(round(self.data[-j][i],1)) #more rounding for resistance 
+                        else: dataText = str(round(self.data[-j][i],4)) 
+                        lb = Label(self.dataFrame, text=dataText, width=self.dWidths[i])
+                        lb.grid(row=j, column=i)
+                        self.labelList[-j][i] = lb 
+                    elif i == ei:
+                        #comment entries
+                        en = Entry(self.dataFrame, width=20)
+                        #en.insert(0, '')
+                        en.grid(row=j, column=ei)
+                        self.labelList[-j][ei] = en
+                        self.labelList[-j][ei].insert(0, self.data[-j][ei])
 
-        #rewrite entries according to self.data
-        for i in range(1, min(self.dataFrameLength-1, len(self.data))+1):
-            #empty all
-            self.labelList[i][self.dataFrameWidth-1].delete(0, 'end')
-            #rewrite
-            self.labelList[i][self.dataFrameWidth-1].insert(0, self.data[-i][self.dataFrameWidth-1])
+
+        else:
+            #update list: rewrite the data
+            #for i in range(1, min(self.dataFrameLength-1, len(self.data))+1):
+            for i in range(1, len(self.data)+1):
+                for j in range(self.dataFrameWidth-2):
+                    if j == 6:
+                        self.labelList[i][j]['text'] = str(round(self.data[-i][j],1))
+                    else:
+                        self.labelList[i][j]['text'] = str(round(self.data[-i][j],4))
+            
+            #write zeros for things with no data.
+            for i in range(len(self.data), self.dataFrameLength-1):
+                for j in range(self.dataFrameWidth-2):
+                    self.labelList[i+1][j]['text'] = str(0)
+
+            #rewrite entries according to self.data
+            ei = self.dataFrameWidth-2 #entry index
+            #for i in range(1, min(self.dataFrameLength-1, len(self.data))+1):
+            for i in range(1, len(self.data)+1):
+                #empty all
+                self.labelList[i][ei].delete(0, 'end')
+                #rewrite
+                self.labelList[i][ei].insert(0, self.data[-i][ei])
 
         #update average and std if its not an empty list
         av, std = self.calcStats()
@@ -510,15 +586,16 @@ class Interface(Frame):
         This should be executed at least on 'probe' and 'delete data point' at the start of the function
         '''
         #Go through comments from 1 to dataFrameLength.
-        for i in range(1, min(self.dataFrameLength-1, len(self.data))+1):
+        ei = self.dataFrameWidth -2 #entry index
+        for i in range(1, min(self.dataFrameLength-1, len(self.data)-1)+1):
             #ignore if empty
-            entryVal = self.labelList[i][self.dataFrameWidth-1].get()
+            entryVal = self.labelList[i][ei].get()
             if entryVal == '':
                 continue
             else:
                 #store in self.data
                 dataNum = int(self.labelList[i][0]['text'])
-                self.data[dataNum-1][self.dataFrameWidth-1]=entryVal
+                self.data[dataNum-1][ei]=entryVal
             
 
 
