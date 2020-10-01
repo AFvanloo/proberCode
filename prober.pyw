@@ -19,7 +19,7 @@ import proberConfig #can probably be deleted
 import connectGPIB as cg
 import updateProber as up
 
-debugMode=False
+debugMode=True
 
 #TODO adapt message window size
 
@@ -274,6 +274,7 @@ class Interface(Frame):
 #statistics
 
 #plotHistogram
+        '''
         self.dataFrameWidth = 11
         
         self.dataFrameLength = 8
@@ -302,28 +303,9 @@ class Interface(Frame):
 
         self.dataFrameLabels = ['measNum', 'Vsource (mV)', 'V+ (mV)', 'V- (mV)', 'I+ (mV)', 'I- (mV)', 'R (Ohm)', 'uV/A', 'gain', 'Comments']
 
-        #pre-allocate list of lists
-        self.labelList = [[0 for i in range(self.dataFrameWidth)] for j in range(self.dataFrameLength)]
 
-        #Add 
-        for i in range(self.dataFrameWidth-1):
-            #set labels
-            la = Label(self.dataFrame, text=self.dataFrameLabels[i], width=self.dWidths[i])
-            la.grid(row=0, column=i)
-            self.labelList[0][i]=la
-            #for j in range(1, max(self.dataFrameLength, len(self.data))):
-            for j in range(1, self.dataFrameLength):
-                #data labels
-                if i < self.dataFrameWidth-2:
-                    lb = Label(self.dataFrame, text='0', width=self.dWidths[i])
-                    lb.grid(row=j, column=i)
-                    self.labelList[j][i] = lb 
-                elif i == self.dataFrameWidth-2:
-                    #comment entries
-                    en = Entry(self.dataFrame, width=20)
-                    #en.insert(0, '')
-                    en.grid(row=j, column=self.dataFrameWidth-2)
-                    self.labelList[j][self.dataFrameWidth-2] = en
+
+        self.initDataLabels()
         
         #create canvas window
         self.dataCanvas.create_window((0,0), window=self.dataFrame, anchor=NW)
@@ -338,7 +320,8 @@ class Interface(Frame):
 
 
 
-
+        '''
+        self.makeDataFrame()
         
 
 
@@ -403,6 +386,79 @@ class Interface(Frame):
 #========================================================================
 #---------------------------Functions------------------------------------
 #========================================================================
+
+    def makeDataFrame(self):
+
+        self.dataFrameWidth = 11
+        
+        self.dataFrameLength = 8
+        self.dWidths=[10, 12] + [7]*4 + [10] + 2*[5]+[12] +[1]
+
+        #outer frame?
+        self.outerFrame =  Frame(self)
+        self.outerFrame.grid(row=6, rowspan=self.dataFrameLength,column=0, columnspan=self.dataFrameWidth)
+
+        #Put canvas inside outer frame
+        self.dataCanvas = Canvas(self.outerFrame)
+        self.dataCanvas.grid(row=0, column=0)
+
+        #scrollbar also goes in outer frame
+        self.dataScrollbar = Scrollbar(self.outerFrame, orient='vertical', command=self.dataCanvas.yview)
+        self.dataScrollbar.grid(row=0, column=1, sticky=NS)
+        self.dataCanvas.configure(yscrollcommand=self.dataScrollbar.set)
+        #The data frame goes inside the canvas
+        #self.dataFrame = LabelFrame(self.dataCanvas, text='last few results', labelanchor='n')
+
+        #Data frame goes in the canvas
+        self.dataFrame = Frame(self.dataCanvas)
+        self.dataFrame.grid(row=0, column=0)
+
+        self.dataFrame.bind('<Configure>', self.onFrameConfigure)
+
+        self.dataFrameLabels = ['measNum', 'Vsource (mV)', 'V+ (mV)', 'V- (mV)', 'I+ (mV)', 'I- (mV)', 'R (Ohm)', 'uV/A', 'gain', 'Comments']
+
+        self.initDataLabels()
+        
+        #create canvas window
+        self.dataCanvas.create_window((0,0), window=self.dataFrame, anchor=NW)
+
+        #something?
+        self.dataFrame.update_idletasks()
+        bbox = self.dataCanvas.bbox(ALL)
+
+        w, h = bbox[2]-bbox[1], bbox[3]-bbox[1]
+        self.dataCanvas.configure(scrollregion=bbox, width=w, height=int(h/max(len(self.data),self.dataFrameLength)*self.dataFrameLength))
+        #self.dataCanvas.configure(scrollregion=bbox, width=w, height=80)
+
+
+
+
+
+    def initDataLabels(self):
+        #pre-allocate list of lists
+        self.labelList = [[0 for i in range(self.dataFrameWidth)] for j in range(self.dataFrameLength)]
+
+        #Add 
+        for i in range(self.dataFrameWidth-1):
+            #set labels
+            la = Label(self.dataFrame, text=self.dataFrameLabels[i], width=self.dWidths[i])
+            la.grid(row=0, column=i)
+            self.labelList[0][i]=la
+            #for j in range(1, max(self.dataFrameLength, len(self.data))):
+            for j in range(1, self.dataFrameLength):
+                #data labels
+                if i < self.dataFrameWidth-2:
+                    lb = Label(self.dataFrame, text='0', width=self.dWidths[i])
+                    lb.grid(row=j, column=i)
+                    self.labelList[j][i] = lb 
+                elif i == self.dataFrameWidth-2:
+                    #comment entries
+                    en = Entry(self.dataFrame, width=20)
+                    #en.insert(0, '')
+                    en.grid(row=j, column=self.dataFrameWidth-2)
+                    self.labelList[j][self.dataFrameWidth-2] = en
+
+
 
     #For scrollbar Functionality
     def onFrameConfigure(self, event):
@@ -500,22 +556,25 @@ class Interface(Frame):
         #self.ImLabel.configure(text=round(self.Im,4))
         #self.RLabel.configure(text=round(self.R,4))
 
+        #if len(self.data) >= 0:
         if len(self.data) >= self.dataFrameLength:
             #create a new labelList:
-            self.labelList = [[i for i in range(self.dataFrameWidth)] for j in range(len(self.data))]
+            self.labelList = [[i for i in range(self.dataFrameWidth)] for j in range(max(self.dataFrameLength,len(self.data)))]
                     
             for i in range(self.dataFrameWidth-1):
                 #set labels
                 la = Label(self.dataFrame, text=self.dataFrameLabels[i], width=self.dWidths[i])
                 la.grid(row=0, column=i)
                 self.labelList[0][i]=la
-                for j in range(1, len(self.data)+1):
+                for j in range(1, max(len(self.data)+1, self.dataFrameLength)):
                 #for j in range(1, self.dataFrameLength):
                     #data labels
                     ei = self.dataFrameWidth-2 #entry index
                     if i < ei:
-                        if i == 6: dataText = str(round(self.data[-j][i],1)) #more rounding for resistance 
-                        else: dataText = str(round(self.data[-j][i],4)) 
+                        if j > len(self.data): dataText = str(0)
+                        elif i == 6: dataText = str(round(self.data[-j][i],1)) #more rounding for resistance 
+                        elif j<=len(self.data):
+                            dataText = str(round(self.data[-j][i],4)) 
                         lb = Label(self.dataFrame, text=dataText, width=self.dWidths[i])
                         lb.grid(row=j, column=i)
                         self.labelList[-j][i] = lb 
@@ -525,7 +584,8 @@ class Interface(Frame):
                         #en.insert(0, '')
                         en.grid(row=j, column=ei)
                         self.labelList[-j][ei] = en
-                        self.labelList[-j][ei].insert(0, self.data[-j][ei])
+                        if j<=len(self.data):
+                            self.labelList[-j][ei].insert(0, self.data[-j][ei])
 
 
         else:
@@ -560,12 +620,26 @@ class Interface(Frame):
     def reset(self):
 
         #empty the comments:
-        for i in range(1, min(self.dataFrameLength-1, len(self.data))+1):
-            self.labelList[i][self.dataFrameWidth-1].delete(0, 'end')
+        #for i in range(1,len(self.data)+1):
+        #    print('datareset ', i)
+        #    self.labelList[i][self.dataFrameWidth-2].delete(0, 'end')
 
         #empty the label list / remove data
+        for i in range(len(self.data)):
+            for j in range(self.dataFrameWidth-1):
+                self.labelList[i][j].destroy()
+            #delete entry
+
+        del(self.data)
         self.data = []
         self.measNum = 0
+
+        del(self.labelList)
+        self.initDataLabels()
+
+        self.dataFrame.destroy()
+        self.makeDataFrame()
+
 
         #change the timestamp / saveName
         self.saveName = self.timeName()
@@ -574,7 +648,6 @@ class Interface(Frame):
         self.saveEntry.delete(0, 'end')
         self.saveEntry.insert(0, self.savePath)
 
-        #check all instrument connections and settings
         #finally, update everything
         self.updateResults()
 
