@@ -19,7 +19,7 @@ import proberConfig #can probably be deleted
 import connectGPIB as cg
 import updateProber as up
 
-debugMode=False
+debugMode=True
 
 #TODO adapt message window size
 
@@ -368,7 +368,7 @@ class Interface(Frame):
 
         self.dataFrame.bind('<Configure>', self.onFrameConfigure)
 
-        self.dataFrameLabels = ['measNum', 'Vsource (mV)', 'V+ (mV)', 'V- (mV)', 'I+ (mV)', 'I- (mV)', 'R (Ohm)', 'uV/A', 'gain', 'Comments']
+        self.dataFrameLabels = ['measNum', 'Vsource (V)', 'V+ (mV)', 'V- (mV)', 'I+ (mV)', 'I- (mV)', 'R (Ohm)', 'uV/A', 'gain', 'Comments']
 
         self.initDataLabels()
         
@@ -485,7 +485,7 @@ class Interface(Frame):
         #save values, put in data frame
         self.measNum += 1
         #On each line, we first append an empty comment, then read the comments from the field and insert them
-        self.data.append([self.measNum, voltage, self.Vp, self.Vm, self.Ip, self.Im, self.R, self.gain, self.uvA, ''])
+        self.data.append([self.measNum, voltage, self.Vp, self.Vm, self.Ip, self.Im, self.R, self.uvA, self.gain, ''])
         self.getComments()
         self.updateResults()
 
@@ -613,7 +613,8 @@ class Interface(Frame):
         '''
         #Go through comments from 1 to dataFrameLength.
         ei = self.dataFrameWidth -2 #entry index
-        for i in range(1, min(self.dataFrameLength-1, len(self.data)-1)+1):
+        #for i in range(1, min(self.dataFrameLength-1, len(self.data)-1)+1):
+        for i in range(1, max(self.dataFrameLength, len(self.data)-1)):
             #ignore if empty
             entryVal = self.labelList[i][ei].get()
             if entryVal == '':
@@ -700,7 +701,6 @@ class Interface(Frame):
         self.savePath = self.saveEntry.get()
 
         #Are all comment entries added to self.data?
-
 
         #combine labels and data
         self.labeledData = [self.dataFrameLabels] + self.data
