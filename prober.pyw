@@ -19,7 +19,7 @@ import proberConfig #can probably be deleted
 import connectGPIB as cg
 import updateProber as up
 
-debugMode=True
+debugMode=False
 
 #TODO adapt message window size
 
